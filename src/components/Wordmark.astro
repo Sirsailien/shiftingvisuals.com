@@ -1,0 +1,27 @@
+---
+// Wordmark: the Shifting Visuals eye followed by the name. Returns home.
+import Eye from './Eye.astro';
+---
+
+<a class="wordmark" href="#/" aria-label="Shifting Visuals, home">
+  <Eye class="wordmark__eye" />
+  <span class="serif">Shifting Visuals</span>
+</a>
+
+<style>
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: 0.005em;
+    white-space: nowrap;
+  }
+
+  .wordmark :global(.wordmark__eye) {
+    width: 30px;
+    height: auto;
+    flex: none;
+  }
+</style>

@@ -1,0 +1,138 @@
+---
+// Contact: an invitation, the email address (selectable, with a copy button) and socials.
+const EMAIL = 'shiftingvisuals@gmail.com';
+const SOCIALS = [
+  { label: 'Instagram', url: 'https://www.instagram.com/shiftingvisuals' },
+  { label: 'YouTube', url: 'https://www.youtube.com/@shiftingvisuals' },
+];
+---
+
+<div class="ct">
+  <p class="label ct__eyebrow">Contact</p>
+  <h1 class="serif ct__line" tabindex="-1" data-page-heading>Want to be part of our story?</h1>
+  <p class="ct__sub">We're always looking for new cast, crew and collaborators. Feel free to reach out!</p>
+
+  <div class="ct__mail">
+    <a class="serif ct__address" href={`mailto:${EMAIL}`}>{EMAIL}</a>
+    <button class="label ct__copy" type="button" data-copy={EMAIL}>Copy</button>
+    <span class="sr-only" aria-live="polite" data-copy-status></span>
+  </div>
+
+  <ul class="ct__social label">
+    {
+      SOCIALS.map((s) => (
+        <li>
+          <a href={s.url} target="_blank" rel="noopener noreferrer">
+            {s.label} <span aria-hidden="true">↗</span>
+            <span class="sr-only">(opens in a new tab)</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</div>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>('[data-copy]')!;
+  const status = document.querySelector('[data-copy-status]')!;
+  let reset = 0;
+
+  button.addEventListener('click', async () => {
+    const email = button.dataset.copy!;
+    try {
+      await navigator.clipboard.writeText(email);
+    } catch {
+      // Older browsers / insecure origins: select the address so it can be copied by hand.
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector('.ct__address')!);
+      getSelection()?.removeAllRanges();
+      getSelection()?.addRange(range);
+      document.execCommand?.('copy');
+    }
+    button.textContent = 'Copied';
+    status.textContent = 'Email address copied';
+    clearTimeout(reset);
+    reset = window.setTimeout(() => {
+      button.textContent = 'Copy';
+      status.textContent = '';
+    }, 2000);
+  });
+</script>
+
+<style>
+  .ct {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: calc(var(--gutter) * 2 + 40px) var(--gutter) var(--gutter);
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .ct__eyebrow {
+    color: var(--grey);
+  }
+
+  .ct__line {
+    margin-top: 16px;
+    max-width: 16ch;
+    font-size: clamp(40px, 6vw, 88px);
+    line-height: 1;
+  }
+
+  .ct__line:focus {
+    outline: none;
+  }
+
+  .ct__sub {
+    margin-top: 20px;
+    color: var(--off-white);
+    font-size: 15px;
+  }
+
+  .ct__mail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 24px;
+    margin-top: clamp(40px, 8vh, 80px);
+    padding-bottom: 20px;
+    border-bottom: var(--line);
+  }
+
+  .ct__address {
+    font-size: clamp(26px, 3.6vw, 48px);
+    line-height: 1.1;
+    user-select: all; /* one click selects the whole address */
+    overflow-wrap: anywhere;
+  }
+
+  .ct__address:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 6px;
+  }
+
+  .ct__copy {
+    padding: 7px 12px;
+    border: 1px solid var(--grey);
+    color: var(--off-white);
+    transition: border-color 0.2s;
+  }
+
+  .ct__copy:hover {
+    border-color: var(--white);
+  }
+
+  .ct__social {
+    display: flex;
+    gap: 28px;
+    margin-top: 20px;
+    color: var(--grey);
+  }
+
+  .ct__social a:hover {
+    color: var(--white);
+  }
+</style>

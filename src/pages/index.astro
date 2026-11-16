@@ -1,0 +1,39 @@
+---
+import Base from '../layouts/Base.astro';
+import HomeLens from '../components/HomeLens.astro';
+import PageShell from '../components/PageShell.astro';
+import FilmReel from '../components/FilmReel.astro';
+import Team from '../components/Team.astro';
+import Contact from '../components/Contact.astro';
+import TransitionLab from '../components/TransitionLab.astro';
+---
+
+<Base>
+  <main>
+    <HomeLens />
+
+    <PageShell page="portfolio" title="Portfolio">
+      <h1 class="sr-only" tabindex="-1" data-page-heading>Portfolio</h1>
+      <FilmReel source="films" route="portfolio" label="Films" />
+    </PageShell>
+
+    <PageShell page="team" title="Meet the team">
+      <Team />
+    </PageShell>
+
+    <PageShell page="in-the-works" title="In the works">
+      <h1 class="sr-only" tabindex="-1" data-page-heading>In the works</h1>
+      <FilmReel source="inTheWorks" route="in-the-works" label="Projects in the works" />
+    </PageShell>
+
+    <PageShell page="contact" title="Contact">
+      <Contact />
+    </PageShell>
+  </main>
+
+  {import.meta.env.DEV && <TransitionLab />}
+</Base>
+
+<script>
+  import '../scripts/router.js';
+</script>

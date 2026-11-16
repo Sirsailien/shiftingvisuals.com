@@ -1,0 +1,117 @@
+<!--
+  ROTATING CREDIT — Shifting Visuals concept code
+  Self-contained: save as .html and open in a browser to try it.
+  Edit the `credits` list at the bottom to change names, roles and films.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rotating Credit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --grey: #8a8984;
+    --white: #fafaf8;
+    --display: "Instrument Serif", "Times New Roman", serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  body { margin: 0; background: var(--black); }
+
+  .credit {
+    min-height: 100vh;
+    display: grid;
+    place-content: center;
+    gap: 8px;
+    text-align: center;
+    padding: 24px;
+  }
+  .credit .role {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--grey);
+  }
+  .credit .name {
+    font-family: var(--display);
+    font-size: clamp(2.8rem, 9vw, 6rem);
+    color: var(--white);
+    line-height: 1;
+    height: 1.1em;
+    overflow: hidden;      /* hides the text while it slides */
+  }
+  .credit .film {
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 1.3rem;
+    color: var(--grey);
+    margin-top: 12px;
+  }
+
+  /* The slide animation */
+  .credit .name span,
+  .credit .role span {
+    display: inline-block;
+    transition: transform .6s cubic-bezier(.7,0,.2,1), opacity .6s;
+  }
+  .credit .out { transform: translateY(-100%); opacity: 0; }                     /* slides up and away */
+  .credit .in  { transform: translateY(100%);  opacity: 0; transition: none !important; } /* waits below */
+
+  @media (prefers-reduced-motion: reduce) {
+    .credit .name span, .credit .role span { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="credit" aria-live="polite">
+  <div class="role"><span id="cRole">Directed by</span></div>
+  <div class="name"><span id="cName">Noor</span></div>
+  <div class="film" id="cFilm">Tegenwind, 2022</div>
+</div>
+
+<script>
+  // Placeholder credits — replace with your own
+  const credits = [
+    { role: "Directed by", name: "Noor",  film: "Tegenwind, 2022" },
+    { role: "Shot by",     name: "Daan",  film: "Tegenwind, 2022" },
+    { role: "Directed by", name: "Daan",  film: "Glass Hours, 2023" },
+    { role: "Shot by",     name: "Lotte", film: "Glass Hours, 2023" },
+    { role: "Directed by", name: "Sam",   film: "The Quiet Side, 2024" },
+    { role: "Edited by",   name: "Daan",  film: "The Quiet Side, 2024" }
+  ];
+
+  const INTERVAL = 2600; // ms between credits
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cRole = document.getElementById("cRole");
+  const cName = document.getElementById("cName");
+  const cFilm = document.getElementById("cFilm");
+  let i = 0;
+
+  // Slide the old text up, then bring the new text in from below
+  function swap(el, text) {
+    if (reduce) { el.textContent = text; return; }
+    el.classList.add("out");
+    setTimeout(() => {
+      el.classList.remove("out");
+      el.classList.add("in");
+      el.textContent = text;
+      void el.offsetWidth;           // force reflow so the next line animates
+      el.classList.remove("in");
+    }, 600);
+  }
+
+  setInterval(() => {
+    i = (i + 1) % credits.length;
+    const c = credits[i];
+    swap(cRole, c.role);
+    swap(cName, c.name);
+    cFilm.textContent = c.film;
+  }, INTERVAL);
+</script>
+</body>
+</html>

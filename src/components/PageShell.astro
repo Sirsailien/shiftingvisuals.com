@@ -1,0 +1,43 @@
+---
+// A full-screen page with the wordmark (top-left) and the quiet menu (top-right).
+import Wordmark from './Wordmark.astro';
+import Menu from './Menu.astro';
+import type { PageKey } from '../lib/pages';
+
+interface Props {
+  page: PageKey;
+  title: string;
+}
+
+const { page, title } = Astro.props;
+---
+
+<section class="page" data-page={page} data-title={title} aria-label={title} inert>
+  <header class="chrome">
+    <Wordmark />
+    <Menu current={page} />
+  </header>
+  <div class="page__body">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .chrome {
+    position: absolute;
+    z-index: 5;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--gutter);
+    padding-top: max(var(--gutter), env(safe-area-inset-top));
+  }
+
+  .page__body {
+    position: absolute;
+    inset: 0;
+  }
+</style>

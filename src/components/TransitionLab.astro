@@ -1,0 +1,83 @@
+---
+// DEV ONLY (never in the built site): lets you try the iris transition options.
+// Delete this component once a choice is made.
+---
+
+<details class="lab label">
+<summary class="lab__title">Lab · dev only</summary>
+<form class="lab__form" data-transition-lab aria-label="Options (dev only)">
+  <label>
+    To home
+    <select name="home">
+      <option value="lens">A · Iris closes onto the lens</option>
+      <option value="centre">B · Iris closes onto the centre word</option>
+      <option value="black">C · Iris to black, home fades up</option>
+    </select>
+  </label>
+  <label>
+    Page → page
+    <select name="between">
+      <option value="via-home">A · Through the lens</option>
+      <option value="direct">B · Iris opens from the click</option>
+      <option value="black">C · Iris to black, open again</option>
+    </select>
+  </label>
+</form>
+</details>
+
+<style>
+  .lab {
+    position: fixed;
+    z-index: 100;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 12px;
+    background: var(--black);
+    border: 1px solid var(--grey);
+    color: var(--grey);
+    font-size: 10px;
+  }
+
+  .lab__title {
+    color: var(--white);
+    cursor: pointer;
+  }
+
+  .lab__form {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .lab label {
+    display: grid;
+    gap: 4px;
+  }
+
+  .lab select {
+    font: inherit;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--white);
+    background: var(--black);
+    border: var(--line);
+    padding: 4px;
+  }
+</style>
+
+<script>
+  import { settings } from '../scripts/transition-settings.js';
+
+  const form = document.querySelector<HTMLFormElement>('[data-transition-lab]')!;
+  for (const name of ['home', 'between'] as const) {
+    const select = form.elements.namedItem(name) as HTMLSelectElement;
+    select.value = settings[name];
+    select.addEventListener('change', () => {
+      settings[name] = select.value;
+      try {
+        localStorage.setItem('sv-transition-lab', JSON.stringify(settings));
+      } catch {}
+    });
+  }
+</script>

@@ -1,0 +1,393 @@
+---
+// Meet the team: the "our perspectives" statement, then one panel per person.
+// Desktop: panels side by side; the screen edges glow with an arrow to page through
+//          (click, or use the mouse wheel). Phone: one panel per screen, swipe like reels.
+import { getCollection } from 'astro:content';
+import { Image } from 'astro:assets';
+import { rolesFor } from '../lib/roles';
+
+const films = await getCollection('films');
+const inTheWorks = await getCollection('inTheWorks');
+const people = (await getCollection('team'))
+  .sort((a, b) => a.data.order - b.data.order)
+  .map(({ data }) => ({ ...data, work: rolesFor(data.slug, films, inTheWorks) }));
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<div class="tm" data-team>
+  <div class="tm__track" data-track>
+    <section class="tm__panel tm__intro" data-panel>
+      <p class="label tm__eyebrow">Our perspectives</p>
+      <h1 class="serif tm__title" tabindex="-1" data-page-heading>Meet the team</h1>
+      <div class="tm__statement">
+        <p>
+          Shifting Visuals is an always changing team, people will leave and join as passions and obligations
+          change. We don't shy away from that, but we embrace it. Our name started because we want to experiment.
+          Not only by making films that shift perspectives, but also by shifting the creative roles internally so
+          that every vision has a chance to flourish.
+        </p>
+        <p>
+          Shifting Visuals stands for stories that mean something. Not just in the final product, but also the
+          journey to get there.
+        </p>
+      </div>
+    </section>
+
+    {
+      people.map((p) => (
+        <article class="tm__panel tm__person" data-panel aria-labelledby={`person-${p.slug}`}>
+          <div class="tm__photo" data-photo>
+            {p.photo ? (
+              <Image
+                src={p.photo}
+                alt={`Portrait of ${p.name}`}
+                width={640}
+                widths={[320, 640]}
+                sizes="(max-width: 760px) 70vw, 28vw"
+                style={`object-position: ${p.photoFocus}`}
+              />
+            ) : (
+              <span class="tm__initials serif" aria-hidden="true">
+                {initials(p.name)}
+              </span>
+            )}
+          </div>
+          <h2 class="serif tm__name" id={`person-${p.slug}`}>
+            {p.name}
+          </h2>
+          <p class="tm__bio">{p.bio}</p>
+          {p.work.length > 0 && (
+            <ul class="tm__work" aria-label={`${p.name}'s roles`}>
+              {p.work.map((w) => (
+                <li>
+                  <a class="tm__film serif" href={w.href}>
+                    {w.title}
+                  </a>
+                  <span class="label tm__roles">
+                    {w.roles.join(' · ')}
+                    {w.inTheWorks && ' · in the works'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {p.links.length > 0 && (
+            <ul class="tm__links label">
+              {p.links.map((l) => (
+                <li>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer">
+                    {l.label} <span aria-hidden="true">↗</span>
+                    <span class="sr-only">(opens in a new tab)</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+      ))
+    }
+  </div>
+
+  <button class="tm__edge tm__edge--prev" type="button" data-prev aria-label="Previous">
+    <span class="tm__arrow label" aria-hidden="true">←</span>
+  </button>
+  <button class="tm__edge tm__edge--next" type="button" data-next aria-label="Next">
+    <span class="tm__arrow label" aria-hidden="true">→</span>
+  </button>
+
+  <button class="tm__count label" type="button" data-next-phone aria-label="Next">
+    <span data-count>01</span> / {pad(people.length + 1)} <span aria-hidden="true">↓</span>
+  </button>
+</div>
+
+<script>
+  import '../scripts/team.js';
+</script>
+
+<style>
+  .tm {
+    position: absolute;
+    inset: 0;
+  }
+
+  .tm__track {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    gap: clamp(32px, 4vw, 64px);
+    padding: calc(var(--gutter) * 2 + 56px) var(--gutter) 48px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--gutter);
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+  }
+
+  .tm__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tm__panel {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Statement ---------- */
+
+  .tm__intro {
+    width: clamp(300px, 30vw, 460px);
+    padding-right: clamp(0px, 2vw, 32px);
+    border-right: var(--line);
+  }
+
+  .tm__eyebrow {
+    margin-bottom: 14px;
+    color: var(--grey);
+  }
+
+  .tm__title {
+    margin: 0 0 28px;
+    font-size: clamp(48px, 5.5vw, 88px);
+    line-height: 0.95;
+  }
+
+  .tm__title:focus {
+    outline: none;
+  }
+
+  .tm__statement {
+    display: grid;
+    gap: 14px;
+    max-width: 38ch;
+    color: var(--off-white);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .tm__statement em {
+    font-family: var(--serif);
+    font-size: 1.15em;
+  }
+
+  /* ---------- Person ---------- */
+
+  .tm__person {
+    width: clamp(260px, 25vw, 380px);
+  }
+
+  /* Same height for every portrait, so the cards line up; it gives way on short
+     screens so name, bio and roles always fit */
+  .tm__photo {
+    position: relative;
+    flex: none;
+    height: clamp(140px, calc(100dvh - 580px), 420px);
+    margin-bottom: 20px;
+    overflow: hidden;
+    background: var(--grey-dark);
+  }
+
+  .tm__photo :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(1);
+    transition: filter 0.6s;
+  }
+
+  /* Black and white; colour on hover (or tap on phones) */
+  .tm__person:hover .tm__photo :global(img),
+  .tm__photo.is-colour :global(img) {
+    filter: none;
+  }
+
+  .tm__initials {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: clamp(48px, 5vw, 80px);
+    color: var(--grey);
+  }
+
+  .tm__name {
+    font-size: clamp(30px, 2.6vw, 42px);
+    line-height: 1;
+  }
+
+  .tm__bio {
+    margin-top: 12px;
+    color: var(--off-white);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  /* Every role, per film: this is where the role-switching shows */
+  .tm__work {
+    margin-top: 20px;
+    border-top: var(--line);
+  }
+
+  .tm__work li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 12px;
+    padding: 9px 0;
+    border-bottom: var(--line);
+  }
+
+  .tm__film {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .tm__film:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .tm__roles {
+    color: var(--grey);
+    font-size: 10px;
+  }
+
+  .tm__links {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+    color: var(--grey);
+  }
+
+  .tm__links a:hover {
+    color: var(--white);
+  }
+
+  /* ---------- Edge paging (desktop) ---------- */
+
+  .tm__edge {
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    bottom: 0;
+    width: 7vw;
+    min-width: 64px;
+    display: grid;
+    place-items: center;
+    color: var(--white);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .tm__edge--prev {
+    left: 0;
+    background: linear-gradient(to right, rgb(250 250 248 / 0.09), transparent);
+  }
+
+  .tm__edge--next {
+    right: 0;
+    background: linear-gradient(to left, rgb(250 250 248 / 0.09), transparent);
+  }
+
+  .tm__edge:hover,
+  .tm__edge:focus-visible {
+    opacity: 1;
+  }
+
+  .tm__edge[hidden] {
+    display: none;
+  }
+
+  /* A tiny arrow is always there, so you know there's more */
+  .tm__arrow {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  .tm:hover .tm__edge:not(:hover) {
+    opacity: 0.35;
+    background: none;
+  }
+
+  .tm__edge:focus-visible {
+    outline-offset: -6px;
+  }
+
+  .tm__count {
+    display: none;
+  }
+
+  /* ---------- Phone: one panel per screen, swipe like reels ---------- */
+
+  @media (max-width: 760px) {
+    .tm__track {
+      flex-direction: column;
+      gap: 0;
+      padding: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+    }
+
+    .tm__panel {
+      width: auto;
+      height: 100%;
+      flex: 0 0 100%;
+      justify-content: center;
+      padding: calc(var(--gutter) + 64px) var(--gutter) 72px;
+      scroll-snap-stop: always;
+    }
+
+    .tm__intro {
+      border: 0;
+      justify-content: center;
+    }
+
+    .tm__photo {
+      height: clamp(110px, calc(100dvh - 540px), 30dvh); /* gives way on short phones */
+      aspect-ratio: 4 / 5;
+      align-self: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .tm__edge {
+      display: none;
+    }
+
+    .tm__count {
+      display: block;
+      position: absolute;
+      z-index: 4;
+      left: 50%;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      padding: 10px 14px;
+      color: var(--off-white);
+      opacity: 0.6;
+    }
+
+    .tm__count[disabled] {
+      opacity: 0.25;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tm__photo :global(img),
+    .tm__edge {
+      transition: none;
+    }
+  }
+</style>

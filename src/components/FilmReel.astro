@@ -1,0 +1,616 @@
+---
+// Film reel: one film at a time. Used by the Portfolio (films) and In the works (projects).
+// Desktop: the film fills the stage, a filmstrip of all films runs along the bottom.
+// Phone:   full-screen films you swipe through (scroll-snap), with a counter.
+// At rest: black-and-white still inside letterbox bars, with the rotating credit.
+// Press:   the credit fades, the bars slide away, the still turns to colour; hold
+//          500ms and the YouTube player opens (full 16:9, its own controls) and stays
+//          open until you switch film or leave the page.
+import { getCollection } from 'astro:content';
+import { Image } from 'astro:assets';
+import { rotatingCredits } from '../lib/credits';
+import { ytThumb } from '../lib/youtube';
+
+interface Props {
+  source: 'films' | 'inTheWorks';
+  route: 'portfolio' | 'in-the-works';
+  label: string; // accessible name of the filmstrip, e.g. "Films"
+}
+
+const { source, route, label } = Astro.props;
+const team = await getCollection('team');
+const items = (await getCollection(source))
+  .sort((a, b) => a.data.order - b.data.order)
+  .map(({ data }) => {
+    const d = data as any;
+    const isFilm = source === 'films';
+    return {
+      slug: d.slug as string,
+      title: d.title as string,
+      youtubeId: (d.youtubeId ?? '') as string,
+      still: d.still,
+      year: isFilm ? (d.year as number) : null,
+      status: isFilm ? null : (d.status as string),
+      meta: isFilm ? `${d.type} · ${d.runtime} · ${d.year}` : d.status,
+      credits: rotatingCredits(d, team),
+    };
+  });
+
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<div class="pf" data-pf data-route={route}>
+  <div class="pf__stage" data-stage>
+    <div class="pf__reel" data-reel>
+      {
+        items.map((f, i) => (
+          <article
+            class:list={['pf__slide', { 'is-current': i === 0 }]}
+            data-slide
+            data-slug={f.slug}
+            data-yt={f.youtubeId}
+            data-title={f.title}
+            data-meta={f.meta}
+            data-credits={JSON.stringify(f.credits)}
+            aria-label={f.title}
+          >
+            {f.still ? (
+              <Image class="pf__still" src={f.still} alt="" widths={[640, 1280, 1920]} sizes="100vw" draggable="false" />
+            ) : f.youtubeId ? (
+              <img
+                class="pf__still"
+                src={ytThumb(f.youtubeId)}
+                alt=""
+                draggable="false"
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+            ) : (
+              <div class="pf__still pf__still--empty" />
+            )}
+            <div class="pf__credit">
+              {f.status && <p class="pf__status label">{f.status}</p>}
+              {f.credits.length > 0 && (
+                <>
+                  <p class="pf__role">
+                    <span data-role>{f.credits[0].label}</span>
+                  </p>
+                  <p class="pf__name serif">
+                    <a data-name href={f.credits[0].href ?? undefined}>
+                      {f.credits[0].name}
+                    </a>
+                  </p>
+                </>
+              )}
+              <div class="pf__film serif">
+                <h2 class="pf__title">{f.title}</h2>
+                {f.year && <>, {f.year}</>}
+              </div>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+
+    <div class="pf__screen">
+      <div class="pf__video" data-video><div data-player></div></div>
+      <div class="pf__bar pf__bar--top" aria-hidden="true"></div>
+      <div class="pf__bar pf__bar--bot" aria-hidden="true"></div>
+    </div>
+
+    <button class="pf__hint label" type="button" data-hint>Press the video</button>
+    <p class="pf__count label" aria-hidden="true">
+      <span data-count>01</span> / {pad(items.length)}
+      <span class="pf__arrow">↓</span>
+    </p>
+  </div>
+
+  <div class="pf__bottom">
+    <nav class="pf__strip" aria-label={label}>
+      {
+        items.map((f, i) => (
+          <a class="pf__thumb" href={`#${route}/${f.slug}`} aria-current={i === 0 ? 'true' : undefined} data-thumb={f.slug}>
+            <span class="pf__thumb-img">
+              {f.still ? (
+                <Image src={f.still} alt="" width={320} />
+              ) : f.youtubeId ? (
+                <img src={ytThumb(f.youtubeId, 'mqdefault')} alt="" loading="lazy" decoding="async" width="320" height="180" />
+              ) : null}
+            </span>
+            <span class="pf__thumb-title label">{f.title}</span>
+          </a>
+        ))
+      }
+    </nav>
+    <div class="pf__caption">
+      <span class="pf__cap-title serif" data-cap-title>{items[0]?.title}</span>
+      <span class="pf__cap-meta label" data-cap-meta>{items[0]?.meta}</span>
+      <button class="pf__sound label" type="button" data-sound aria-pressed="false">Sound on</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { initReel } from '../scripts/reel.js';
+  document.querySelectorAll('[data-pf]').forEach((el) => initReel(el));
+</script>
+
+<style>
+  .pf {
+    --bar: 12%;
+    --ease: cubic-bezier(0.7, 0, 0.2, 1);
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: 1fr auto;
+  }
+
+  /* ---------- Stage ---------- */
+
+  .pf__stage {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none; /* no "save image" menu on a long press */
+  }
+
+  .pf.is-open .pf__stage {
+    cursor: default;
+  }
+
+  .pf__reel {
+    position: absolute;
+    inset: 0;
+  }
+
+  .pf__slide {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    visibility: hidden;
+  }
+
+  .pf__slide.is-current {
+    visibility: visible;
+  }
+
+  .pf__still {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    filter: grayscale(1) brightness(0.45);
+    transition:
+      filter 0.8s,
+      transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .pf.is-engaged .is-current .pf__still {
+    filter: grayscale(0) brightness(0.9);
+    transform: scale(1.04);
+  }
+
+  /* Rotating credit, like opening titles */
+  .pf__credit {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr); /* lines never grow wider than the screen */
+    place-content: center;
+    gap: 8px;
+    padding: 24px;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  .pf.is-engaged .pf__credit {
+    opacity: 0;
+  }
+
+  .pf__role {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--off-white);
+    opacity: 0.75;
+    overflow: hidden;
+  }
+
+  .pf__name {
+    font-size: clamp(2.6rem, 7vw, 5.5rem);
+    line-height: 1;
+    height: 1.1em;
+    overflow: hidden;
+    color: var(--white);
+  }
+
+  .pf__name a[href] {
+    pointer-events: auto;
+  }
+
+  .pf.is-engaged .pf__name a {
+    pointer-events: none;
+  }
+
+  .pf__name a[href]:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.12em;
+  }
+
+  /* One line each; reel.js shrinks a credit that would be too wide */
+  .pf__role span,
+  .pf__name a {
+    display: inline-block;
+    white-space: nowrap;
+    transition:
+      transform 0.6s var(--ease),
+      opacity 0.6s;
+  }
+
+  .pf__credit .out {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  .pf__credit .in {
+    transform: translateY(100%);
+    opacity: 0;
+    transition: none !important;
+  }
+
+  .pf__film {
+    margin-top: 12px;
+    font-size: 1.3rem;
+    font-style: italic;
+    color: var(--off-white);
+    opacity: 0.75;
+  }
+
+  .pf__title {
+    display: inline;
+    font: inherit;
+  }
+
+  /* In the works: Shooting / In post / Development */
+  .pf__status {
+    justify-self: center;
+    margin-bottom: 14px;
+    padding: 5px 10px;
+    border: 1px solid var(--off-white);
+    color: var(--off-white);
+    font-size: 10px;
+  }
+
+  .pf__still--empty {
+    background: var(--grey-dark);
+  }
+
+  /* No video (a project without a teaser): nothing to press */
+  .pf.no-video .pf__stage {
+    cursor: default;
+  }
+
+  .pf.no-video .pf__hint {
+    display: none;
+  }
+
+  /* ---------- Letterbox + player ---------- */
+
+  .pf__screen {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    transition: background-color 0.6s;
+  }
+
+  /* Once the player shows, everything around the 16:9 frame goes black */
+  .pf__screen:has(.is-visible) {
+    background-color: var(--black);
+  }
+
+  /* Inverted letterbox: the bars frame the film at rest and slide away when pressed */
+  .pf__bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: var(--bar);
+    background: var(--black);
+    transition: transform 0.7s var(--ease);
+  }
+
+  .pf__bar--top {
+    top: 0;
+  }
+
+  .pf__bar--bot {
+    bottom: 0;
+  }
+
+  .pf.is-engaged .pf__bar--top {
+    transform: translateY(-100%);
+  }
+
+  .pf.is-engaged .pf__bar--bot {
+    transform: translateY(100%);
+  }
+
+  /* The full 16:9 frame, never cropped. On desktop it starts below the wordmark and
+     menu, so they never cover YouTube's own buttons. */
+  .pf__video {
+    position: absolute;
+    inset: calc(var(--gutter) * 2 + 24px) 0 0;
+    container-type: size;
+    background: var(--black);
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+
+  .pf__video.is-visible {
+    opacity: 1;
+  }
+
+  /* YouTube's own controls take over, but only on the video itself:
+     on phones you can still swipe in the black around it */
+  .pf__video.is-visible :global(iframe) {
+    pointer-events: auto;
+  }
+
+  .pf__video :global(iframe) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(100cqw, 177.78cqh);
+    height: min(100cqh, 56.25cqw);
+    transform: translate(-50%, -50%);
+    border: 0;
+  }
+
+  /* The hint and counter sit in the bottom bar */
+  .pf__hint,
+  .pf__count {
+    position: absolute;
+    z-index: 3;
+    bottom: calc(var(--bar) / 2);
+    transform: translateY(50%);
+    color: var(--off-white);
+    opacity: 0.6;
+    white-space: nowrap;
+    transition: opacity 0.4s;
+  }
+
+  .pf__hint {
+    left: 50%;
+    transform: translate(-50%, 50%);
+    padding: 8px 12px;
+  }
+
+  .pf__count {
+    display: none;
+    right: var(--gutter);
+  }
+
+  .pf.is-engaged .pf__hint,
+  .pf.is-engaged .pf__count {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* While a film is open on a phone, the counter moves up to show you can still swipe */
+  .pf.is-open .pf__count {
+    opacity: 0.6;
+    bottom: auto;
+    top: calc(var(--gutter) * 2 + 40px);
+    transform: none;
+  }
+
+  .pf__hint:focus-visible {
+    outline-offset: -4px;
+  }
+
+  /* ---------- Bottom row (desktop): filmstrip + current film ---------- */
+
+  .pf__bottom {
+    display: flex;
+    align-items: flex-end;
+    gap: 32px;
+    padding: 16px var(--gutter) 18px;
+    border-top: var(--line);
+  }
+
+  .pf__strip {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .pf__thumb {
+    flex: 0 0 168px;
+    display: grid;
+    gap: 10px;
+    color: var(--grey);
+  }
+
+  .pf__thumb-img {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--grey-dark);
+  }
+
+  .pf__thumb-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(1) brightness(0.6);
+    transition: filter 0.35s;
+  }
+
+  .pf__thumb-title {
+    display: block;
+    padding-top: 8px;
+    border-top: var(--line);
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  /* House lights down: hovering one film darkens the rest */
+  .pf__strip:hover .pf__thumb:not(:hover) .pf__thumb-img img {
+    filter: grayscale(1) brightness(0.22);
+  }
+
+  .pf__thumb:hover .pf__thumb-img img,
+  .pf__thumb:focus-visible .pf__thumb-img img {
+    filter: grayscale(0) brightness(0.95);
+  }
+
+  .pf__thumb[aria-current='true'] .pf__thumb-title {
+    color: var(--white);
+    border-top-color: var(--white);
+  }
+
+  .pf__thumb:focus-visible {
+    outline-offset: 3px;
+  }
+
+  .pf__caption {
+    flex: none;
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+    max-width: 40%;
+    text-align: right;
+    color: var(--grey);
+  }
+
+  .pf__cap-title {
+    max-width: 100%;
+    font-size: 1.4rem;
+    line-height: 1.1;
+    color: var(--white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pf__sound {
+    margin-top: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--grey);
+    color: var(--off-white);
+    transition: border-color 0.2s;
+  }
+
+  .pf:not(.is-open) .pf__sound {
+    display: none;
+  }
+
+  .pf__sound:hover {
+    border-color: var(--white);
+  }
+
+  /* ---------- Phone: swipe through full-screen films ---------- */
+
+  @media (max-width: 760px) {
+    .pf {
+      grid-template-rows: 1fr;
+    }
+
+    .pf__stage {
+      touch-action: pan-y;
+    }
+
+    .pf__reel {
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+
+    .pf__reel::-webkit-scrollbar {
+      display: none;
+    }
+
+    .pf__slide {
+      position: relative;
+      height: 100%;
+      visibility: visible;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+    }
+
+    .pf__count {
+      display: block;
+    }
+
+    .pf__video {
+      inset: 0;
+    }
+
+    /* Below the 16:9 video, in the black: title + sound */
+    .pf__bottom {
+      position: absolute;
+      z-index: 3;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0 var(--gutter) max(24px, env(safe-area-inset-bottom));
+      border: 0;
+      pointer-events: none;
+    }
+
+    .pf__strip {
+      display: none;
+    }
+
+    .pf__caption {
+      max-width: none;
+      width: 100%;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      justify-items: start;
+      text-align: left;
+      opacity: 0;
+      transition: opacity 0.5s 0.3s;
+    }
+
+    .pf.is-open .pf__caption {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .pf__cap-meta {
+      display: none;
+    }
+
+    .pf__sound {
+      margin: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pf__still,
+    .pf__bar,
+    .pf__role span,
+    .pf__name a {
+      transition: none !important;
+    }
+
+    .pf.is-engaged .is-current .pf__still {
+      transform: none;
+    }
+  }
+</style>

@@ -1,0 +1,328 @@
+<!--
+  LETTERBOX PORTFOLIO — Shifting Visuals concept code
+  Save as .html and open it through a local web server (see note below).
+
+  Desktop: the rotating credit sits in front of the still. Hover the film:
+           the credit fades, letterbox bars slide in and the film plays muted.
+  Phones:  press and hold to play, release to pause. Scroll down for the grid.
+
+  NOTE: YouTube often refuses to play when a page is opened straight from
+  your disk (file://). Run a tiny local server in this folder instead, e.g.
+      python3 -m http.server
+  then open http://localhost:8000/letterbox-portfolio.html
+  (or use the "Live Server" extension in VS Code).
+
+  Edit the `films` list at the bottom. All three placeholders use the same
+  public YouTube demo video, replace youtubeId with your own.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Letterbox Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --line: #2a2a28;
+    --grey: #8a8984;
+    --offwhite: #e8e6e1;
+    --white: #fafaf8;
+    --display: "Instrument Serif", "Times New Roman", serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --strip: 128px;         /* height of the thumbnail row */
+    --bar: 12%;             /* letterbox bar height */
+    --ease: cubic-bezier(.7,0,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--black); color: var(--offwhite); }
+  body { overflow: hidden; }   /* desktop: no page scroll */
+
+  /* ---------- The stage (one film at a time) ---------- */
+  .stage {
+    position: relative;
+    height: calc(100% - var(--strip));
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;   /* no "save image" menu on long press */
+  }
+  .still {
+    position: absolute; inset: 0;
+    background: center / cover no-repeat;
+    filter: grayscale(1) brightness(.45);
+    transition: filter .8s, transform 1.4s cubic-bezier(.2,.7,.2,1);
+  }
+  .stage.playing .still { filter: grayscale(0) brightness(.9); transform: scale(1.04); }
+
+  /* YouTube player, scaled to cover the stage like background-size: cover */
+  .video {
+    position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity .6s;
+    pointer-events: none;          /* keep hover on the stage, hide YouTube controls */
+  }
+  .video.visible { opacity: 1; }
+  .video iframe, .video #player {
+    position: absolute; top: 50%; left: 50%;
+    width: 100%; height: 56.25vw;  /* 16:9 */
+    min-height: 100%; min-width: 177.78vh;
+    transform: translate(-50%, -50%);
+    border: 0;
+  }
+
+  /* Letterbox bars: hidden above/below at rest, slide in when playing */
+  .bar {
+    position: absolute; left: 0; right: 0; height: var(--bar);
+    background: var(--black); z-index: 3;
+    transition: transform .7s var(--ease);
+  }
+  .bar.top { top: 0; transform: translateY(-100%); }
+  .bar.bot { bottom: 0; transform: translateY(100%); }
+  .stage.playing .bar { transform: translateY(0); }
+
+  /* Rotating credit, in front of the still */
+  .credit {
+    position: absolute; inset: 0; z-index: 2;
+    display: grid; place-content: center; gap: 8px;
+    text-align: center; padding: 24px;
+    transition: opacity .5s;
+  }
+  .stage.playing .credit { opacity: 0; }
+  .credit .role { font-family: var(--mono); font-size: 13px; letter-spacing: .25em; text-transform: uppercase; color: var(--offwhite); opacity: .75; }
+  .credit .name { font-family: var(--display); font-size: clamp(2.6rem, 9vw, 6rem); color: var(--white); line-height: 1; height: 1.1em; overflow: hidden; }
+  .credit .film { font-family: var(--display); font-style: italic; font-size: 1.3rem; color: var(--offwhite); opacity: .75; margin-top: 12px; }
+  .credit .name span, .credit .role span { display: inline-block; transition: transform .6s var(--ease), opacity .6s; }
+  .credit .out { transform: translateY(-100%); opacity: 0; }
+  .credit .in  { transform: translateY(100%);  opacity: 0; transition: none !important; }
+
+  /* Title + meta live inside the bottom bar while playing, like subtitles */
+  .caption {
+    position: absolute; z-index: 4; left: 24px; right: 24px; bottom: 0;
+    height: var(--bar); display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--grey);
+    opacity: 0; transition: opacity .5s .3s;
+  }
+  .stage.playing .caption { opacity: 1; }
+  .caption .t { font-family: var(--display); font-size: 1.4rem; letter-spacing: 0; text-transform: none; color: var(--white); }
+
+  .hint {
+    position: absolute; z-index: 4; left: 50%; bottom: 20px; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--offwhite); opacity: .6;
+    transition: opacity .4s; pointer-events: none; white-space: nowrap;
+  }
+  .stage.playing .hint { opacity: 0; }
+  .hint .touch { display: none; }
+  @media (hover: none) { .hint .mouse { display: none; } .hint .touch { display: inline; } }
+
+  .sound {
+    position: absolute; z-index: 5; top: calc(var(--bar) / 2); right: 24px; transform: translateY(-50%);
+    font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase;
+    background: transparent; color: var(--offwhite); border: 1px solid var(--grey);
+    padding: 7px 12px; border-radius: 99px; cursor: pointer;
+    opacity: 0; pointer-events: none; transition: opacity .4s .3s;
+  }
+  .stage.playing .sound { opacity: 1; pointer-events: auto; }
+  .sound:focus-visible, .thumb:focus-visible, .stage:focus-visible { outline: 1px solid var(--white); outline-offset: -3px; }
+
+  /* ---------- Thumbnail strip ---------- */
+  .strip {
+    height: var(--strip);
+    display: flex; gap: 12px; padding: 12px 24px;
+    border-top: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  .thumb {
+    flex: 0 0 auto; width: 160px;
+    display: grid; grid-template-rows: 1fr auto; gap: 6px;
+    background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: var(--grey);
+  }
+  .thumb .img { background: center / cover no-repeat; filter: grayscale(1) brightness(.6); transition: filter .3s; }
+  .thumb span { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .thumb:hover .img, .thumb[aria-current="true"] .img { filter: grayscale(0) brightness(.9); }
+  .thumb[aria-current="true"] span { color: var(--white); }
+
+  /* ---------- Phones: stage on top, scroll down to a grid ---------- */
+  @media (max-width: 700px) {
+    body { overflow: auto; }
+    .stage { height: 72vh; }
+    .strip {
+      height: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 16px 40px;
+      overflow: visible;
+    }
+    .thumb { width: auto; grid-template-rows: auto auto; }
+    .thumb .img { aspect-ratio: 16 / 9; }
+    .caption, .hint { left: 16px; right: 16px; }
+    .hint { left: 50%; right: auto; }
+    .sound { right: 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<section class="stage" id="stage" tabindex="0" aria-label="Film preview. Hover, focus or press and hold to play.">
+  <div class="still" id="still"></div>
+  <div class="video" id="video"><div id="player"></div></div>
+
+  <div class="credit" aria-live="polite">
+    <div class="role"><span id="cRole"></span></div>
+    <div class="name"><span id="cName"></span></div>
+    <div class="film" id="cFilm"></div>
+  </div>
+
+  <div class="bar top"></div>
+  <div class="bar bot"></div>
+  <div class="caption"><span class="t" id="capTitle"></span><span id="capMeta"></span></div>
+  <button class="sound" id="sound" type="button">Sound on</button>
+  <span class="hint"><span class="mouse">Hover to play</span><span class="touch">Press and hold to play</span></span>
+</section>
+
+<nav class="strip" id="strip" aria-label="Other films"></nav>
+
+<script>
+  // ---------- Your films (placeholders) ----------
+  const films = [
+    { title: "Tegenwind", year: 2022, meta: "Short · 14 min", youtubeId: "M7lc1UVf-VE",
+      crew: [["Directed by", "Noor"], ["Shot by", "Daan"], ["Edited by", "Sam"], ["Produced by", "Lotte"]] },
+    { title: "Glass Hours", year: 2023, meta: "Short · 22 min", youtubeId: "M7lc1UVf-VE",
+      crew: [["Directed by", "Daan"], ["Shot by", "Lotte"], ["Edited by", "Noor"], ["Sound by", "Sam"]] },
+    { title: "The Quiet Side", year: 2024, meta: "Documentary · 31 min", youtubeId: "M7lc1UVf-VE",
+      crew: [["Directed by", "Sam"], ["Edited by", "Daan"], ["Shot by", "Lotte"], ["Produced by", "Noor"]] }
+  ];
+  // Optional: add `still: "images/tegenwind.jpg"` to a film to use your own frame instead of the YouTube thumbnail.
+
+  const HOLD_MS = 400;        // press-and-hold duration on phones
+  const CREDIT_MS = 2600;     // time per credit
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage"), video = $("video"), soundBtn = $("sound");
+  const thumbUrl = (f) => f.still || `https://img.youtube.com/vi/${f.youtubeId}/hqdefault.jpg`;
+
+  let current = 0, creditIndex = 0, creditTimer = null;
+  let player = null, playerReady = false, wantPlay = false;
+
+  // ---------- Rotating credit ----------
+  function swap(el, text) {
+    if (reduce) { el.textContent = text; return; }
+    el.classList.add("out");
+    setTimeout(() => {
+      el.classList.remove("out"); el.classList.add("in");
+      el.textContent = text; void el.offsetWidth; el.classList.remove("in");
+    }, 600);
+  }
+  function showCredit(animate) {
+    const f = films[current], [role, name] = f.crew[creditIndex];
+    if (animate) { swap($("cRole"), role); swap($("cName"), name); }
+    else { $("cRole").textContent = role; $("cName").textContent = name; }
+    $("cFilm").textContent = `${f.title}, ${f.year}`;
+  }
+  function startCredits() {
+    clearInterval(creditTimer);
+    creditTimer = setInterval(() => {
+      if (stage.classList.contains("playing")) return;  // pause the credits while the film plays
+      creditIndex = (creditIndex + 1) % films[current].crew.length;
+      showCredit(true);
+    }, CREDIT_MS);
+  }
+
+  // ---------- Switching films ----------
+  function setFilm(i) {
+    current = i; creditIndex = 0;
+    const f = films[i];
+    $("still").style.backgroundImage = `url("${thumbUrl(f)}")`;
+    $("capTitle").textContent = f.title;
+    $("capMeta").textContent = `${f.meta} · ${f.year}`;
+    showCredit(false);
+    startCredits();
+    document.querySelectorAll(".thumb").forEach((t, k) => t.setAttribute("aria-current", k === i));
+    stop();
+    video.classList.remove("visible");
+    if (player && playerReady) player.cueVideoById(f.youtubeId);
+  }
+
+  films.forEach((f, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "thumb";
+    b.innerHTML = `<div class="img" style="background-image:url('${thumbUrl(f)}')"></div><span>${f.title}</span>`;
+    b.addEventListener("click", () => {
+      setFilm(i);
+      if (matchMedia("(max-width: 700px)").matches) stage.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+    });
+    $("strip").appendChild(b);
+  });
+
+  // ---------- YouTube player (created only when first needed) ----------
+  function loadYouTubeApi() {
+    if (window.YT || document.getElementById("yt-api")) return;
+    const s = document.createElement("script");
+    s.id = "yt-api"; s.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(s);
+  }
+  window.onYouTubeIframeAPIReady = () => {
+    player = new YT.Player("player", {
+      videoId: films[current].youtubeId,
+      playerVars: { autoplay: 0, mute: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, iv_load_policy: 3, disablekb: 1, loop: 1 },
+      events: {
+        onReady: () => { playerReady = true; player.mute(); if (wantPlay) player.playVideo(); },
+        onStateChange: (e) => {
+          // Only show the video once it's actually playing, so YouTube's loading screen stays hidden
+          video.classList.toggle("visible", e.data === YT.PlayerState.PLAYING);
+          if (e.data === YT.PlayerState.ENDED) player.seekTo(0);
+        }
+      }
+    });
+  };
+
+  function play() {
+    wantPlay = true;
+    stage.classList.add("playing");
+    if (!player) loadYouTubeApi();
+    else if (playerReady) player.playVideo();
+  }
+  function stop() {
+    wantPlay = false;
+    stage.classList.remove("playing");
+    if (player && playerReady) player.pauseVideo();
+  }
+
+  // ---------- Sound toggle ----------
+  soundBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!playerReady) return;
+    if (player.isMuted()) { player.unMute(); soundBtn.textContent = "Sound off"; }
+    else { player.mute(); soundBtn.textContent = "Sound on"; }
+  });
+  soundBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+
+  // ---------- Desktop: hover and keyboard focus ----------
+  stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") play(); });
+  stage.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") stop(); });
+  stage.addEventListener("focus", () => { if (stage.matches(":focus-visible")) play(); });  // keyboard only, not taps
+  stage.addEventListener("blur", (e) => { if (e.relatedTarget !== soundBtn) stop(); });
+
+  // ---------- Phones: press and hold ----------
+  let holdTimer = null;
+  stage.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") return;
+    holdTimer = setTimeout(play, HOLD_MS);
+  });
+  ["pointerup", "pointercancel"].forEach((type) =>
+    stage.addEventListener(type, (e) => {
+      if (e.pointerType === "mouse") return;
+      clearTimeout(holdTimer);
+      if (stage.classList.contains("playing")) stop();
+    })
+  );
+  stage.addEventListener("contextmenu", (e) => e.preventDefault());  // no long-press menu
+
+  setFilm(0);
+</script>
+</body>
+</html>

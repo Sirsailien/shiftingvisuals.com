@@ -1,0 +1,18 @@
+:root {
+  /* Colour: no accents. Only the films bring colour. */
+  --black: #0a0a0a;
+  --white: #fafaf8;
+  --off-white: #e8e6e1;
+  --grey: #8a8984;
+  --grey-dark: #2a2a28;
+
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Archivo', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --gutter: clamp(16px, 3vw, 40px);
+  --line: 1px solid var(--grey-dark);
+
+  --lens-r: 110px; /* lens is ~220px wide */
+  --ease-iris: cubic-bezier(0.66, 0, 0.22, 1);
+}

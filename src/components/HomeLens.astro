@@ -1,0 +1,202 @@
+---
+// Home: the perspective lens.
+// Two identical stacked layers. The top layer is inverted, reads "Visuals",
+// and is clipped to a circle driven by --lx / --ly / --lr (see scripts/lens.js).
+import { NAV_PAGES, href } from '../lib/pages';
+import Eye from './Eye.astro';
+---
+
+<section class="page home" data-page="home" data-title="Shifting Visuals" aria-label="Home" inert>
+  <div class="home__layer home__layer--base">
+    <div class="home__stack">
+      <h1 class="home__word serif" tabindex="-1" data-page-heading>
+        <span aria-hidden="true">Shifting</span><span class="sr-only">Shifting Visuals</span>
+      </h1>
+      <Eye class="home__eye" />
+      <nav aria-label="Main">
+        <ul class="home__nav">
+          {
+            NAV_PAGES.map((p) => (
+              <li>
+                <a class="home__link serif" href={href(p.route)} data-home-link={p.key}>
+                  {p.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+  <div class="home__layer home__layer--lens" aria-hidden="true">
+    <div class="home__stack">
+      <p class="home__word serif">Visuals</p>
+      <Eye class="home__eye" />
+      <ul class="home__nav">
+        {
+          NAV_PAGES.map((p) => (
+            <li>
+              <a class="home__link serif" href={href(p.route)} tabindex="-1">
+                {p.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+
+  <p class="home__hint label" aria-hidden="true">
+    <span class="hint--mouse">Move your cursor</span>
+    <span class="hint--touch">Tap the screen</span>
+  </p>
+</section>
+
+<script>
+  import '../scripts/lens.js';
+</script>
+
+<style>
+  .home {
+    --lx: 50vw;
+    --ly: 50dvh;
+    --lr: 0px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .home,
+    .home a {
+      cursor: none; /* the lens is the cursor */
+    }
+  }
+
+  .home__layer {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--gutter);
+    background: var(--black);
+    color: var(--white);
+  }
+
+  .home__layer--lens {
+    background: var(--off-white);
+    color: var(--black);
+    clip-path: circle(var(--lr) at var(--lx) var(--ly));
+  }
+
+  .home__stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(28px, 5vh, 48px);
+    text-align: center;
+  }
+
+  .home__word {
+    font-size: clamp(3.25rem, 9vw, 7rem);
+    line-height: 0.95;
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+  }
+
+  .home__word:focus {
+    outline: none;
+  }
+
+  /* The eye sits between the word and the names. Same markup in both layers,
+     so the lens flips its colour. */
+  .home :global(.home__eye) {
+    flex: none;
+    width: 40px;
+    height: auto;
+  }
+
+  /* Page names: one quiet row of mono caps under the word */
+  .home__nav {
+    display: flex;
+    gap: clamp(24px, 3.5vw, 48px);
+  }
+
+  .home__link {
+    display: block;
+    padding: 6px 2px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* At rest: only a hint, barely lighter than the background */
+  .home__layer--base .home__link {
+    color: #121211;
+  }
+
+  .home__layer--base .home__link:focus-visible {
+    color: var(--white);
+  }
+
+  .home__layer--lens .home__link:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+
+  .home__hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    text-align: center;
+    color: var(--grey);
+    pointer-events: none;
+  }
+
+  .hint--touch {
+    display: none;
+  }
+
+  @media (hover: none) {
+    .hint--mouse {
+      display: none;
+    }
+
+    .hint--touch {
+      display: inline;
+    }
+
+    /* On touch, the first tap expands the lens; only then do the names
+       appear (just a hint until then) and become tappable */
+    .home:not(.is-open) .home__link {
+      pointer-events: none;
+    }
+
+    .home__layer--lens .home__link {
+      transition: color 0.5s;
+    }
+
+    .home:not(.is-open) .home__layer--lens .home__link {
+      color: #dad8d2;
+    }
+  }
+
+  @media (max-width: 640px) {
+    /* Phones: one centred column, ≥44px tap targets */
+    .home__nav {
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .home__link {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+    }
+  }
+</style>

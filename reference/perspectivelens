@@ -1,0 +1,114 @@
+<!--
+  PERSPECTIVE LENS (spotlight) — Shifting Visuals concept code
+  Self-contained: save as .html and open in a browser to try it.
+  Updated to the agreed design: "Shifting" flips to "Visuals" under the lens.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perspective Lens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --grey: #8a8984;
+    --offwhite: #e8e6e1;
+    --white: #fafaf8;
+    --display: "Instrument Serif", "Times New Roman", serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  body { margin: 0; background: var(--black); }
+
+  .lens {
+    --x: 50%;              /* lens position, set by JavaScript */
+    --y: 50%;
+    --r: 110px;            /* lens radius */
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    cursor: none;
+    touch-action: pan-y;
+  }
+  .lens .layer {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    text-align: center;
+    padding: 20px;
+  }
+  .lens .layer h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(3rem, 12vw, 9rem);
+    line-height: .95;
+    margin: 0;
+  }
+
+  /* Bottom layer: what you normally see */
+  .lens .base { background: var(--black); }
+  .lens .base h1 { color: var(--white); }
+
+  /* Top layer: only visible inside the circle */
+  .lens .flip {
+    background: var(--offwhite);
+    clip-path: circle(var(--r) at var(--x) var(--y));
+  }
+  .lens .flip h1 { color: var(--black); }
+
+  .lens .hint {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--grey);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  @media (hover: none) { .lens { cursor: auto; } }
+</style>
+</head>
+<body>
+
+<section class="lens" id="lens">
+  <div class="layer base"><h1>Shifting</h1></div>
+  <div class="layer flip" aria-hidden="true"><h1>Visuals</h1></div>
+  <span class="hint">Move your cursor</span>
+</section>
+
+<script>
+  const lens = document.getElementById("lens");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let hovering = false;
+  let t = 0;
+
+  // Follow the mouse
+  lens.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse") return;
+    hovering = true;
+    const r = lens.getBoundingClientRect();
+    lens.style.setProperty("--x", (e.clientX - r.left) + "px");
+    lens.style.setProperty("--y", (e.clientY - r.top) + "px");
+  });
+  lens.addEventListener("pointerleave", () => (hovering = false));
+
+  // Drift slowly when nobody is moving the mouse (and on phones)
+  (function drift() {
+    if (!hovering && !reduce) {
+      t += 0.008;
+      lens.style.setProperty("--x", (50 + Math.sin(t) * 28) + "%");
+      lens.style.setProperty("--y", (50 + Math.sin(t * 1.7) * 18) + "%");
+    }
+    requestAnimationFrame(drift);
+  })();
+</script>
+</body>
+</html>
